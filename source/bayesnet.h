@@ -17,8 +17,8 @@ struct BayesainNetwork{
 
 struct BayesianNetwork* genRandomBN(int n, int k);
 
-int readBayesNet(char *filedir, struct BayesianNetwork *bNet);
-int writeBayesNet(char *);
+int readBayesNet(char *infile, struct BayesianNetwork *bNet);
+int writeBayesNet(char *oufile, struct BayesianNetwork *bNet);
 int checkBayesNet(struct BayesianNetwork *bNet);
 
 vector<int> activeTrail(int Xi, int Xj, vector<int> Z);
