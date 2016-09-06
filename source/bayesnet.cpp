@@ -3,6 +3,16 @@
 
 #define min(a,b) ((a<b)?(a):(b))
 
+void print(char *line){
+    int i=0;
+    while(*(line+i) != '\0'){
+        if(*(line+i) != '\n')
+            putchar(*(line+i));
+        i++;
+    }
+    putchar('\n');
+}
+
 int pickRandomUnvisitedNode(std::map<int,int> &visited, int root, int numNodes)
 {
     std::uniform_int_distribution<int> randomNode(root+1,numNodes);
@@ -33,6 +43,8 @@ BNet genRandomBN(int numNodes, int maxChildren)
     
     retBN.numNodes = numNodes;
     retBN.Parents.resize(numNodes+1);
+    retBN.Children.resize(numNodes+1);
+    
     distribution(generator);
     int curr = 1;
     
@@ -43,11 +55,10 @@ BNet genRandomBN(int numNodes, int maxChildren)
         std::map<int,int> visited;
         visited.clear();
         int child;
-        if(pickChild == 0)
-            retBN.Parents[curr].push_back(-1);
         while(pickChild){
             child = pickRandomUnvisitedNode(visited,curr,numNodes);
-            retBN.Parents[curr].push_back(child);
+            retBN.Children[curr].push_back(child);
+            retBN.Parents[child].push_back(curr);
             pickChild--;
         }
         curr += 1;
@@ -75,9 +86,9 @@ int readBayesNet(char infile[], BNet &bNet)
     bNet.numNodes = atoi(line);
     
     bNet.Parents.resize(bNet.numNodes+1);
+    bNet.Children.resize(bNet.numNodes+1);
     int parent;
     while ((read = getline(&line, &len, fp)) != -1) {
-        //printf("%s\n",line);
         addtoBNet(line,read,bNet);
     }
     
@@ -104,21 +115,18 @@ void addtoBNet(char *line, int size, BNet &bNet)
     if(token == NULL)
         return;
     if(strlen(token)<=2){
-        bNet.Parents[node].push_back(-1);
         return;
     }
     
-    
     token[strlen(token)-2] = '\0';
-    
     line = token;
-    
     token = strtok(line, s2);
     
     /* walk through other tokens */
     while( token != NULL && *token<58 && *token>47)
     {
-        bNet.Parents[node].push_back(atoi(token));
+        bNet.Children[node].push_back(atoi(token));
+        bNet.Parents[atoi(token)].push_back(node);
         token = strtok(NULL, s2);
     }
 }
@@ -129,16 +137,16 @@ void addtoBNet(char *line, int size, BNet &bNet)
  */
 void writeBayesNet(const char outfile[], BNet &bNet)
 {
-    freopen(outfile,"w",stdout);
+    //freopen(outfile,"w",stdout);
     printf("%d\n",bNet.numNodes);
     for(int i=1;i<=bNet.numNodes;++i){
         printf("%d [",i);
-        if(bNet.Parents[i][0]==-1){
+        if(bNet.Children[i].size() == 0){
             printf("]\n");
         }else{
-            for(int j=0;j<bNet.Parents[i].size()-1;++j)
-                printf("%d,",bNet.Parents[i][j]);
-            printf("%d",bNet.Parents[i][bNet.Parents[i].size()-1]);
+            for(int j=0;j<bNet.Children[i].size()-1;++j)
+                printf("%d,",bNet.Children[i][j]);
+            printf("%d",bNet.Children[i][bNet.Children[i].size()-1]);
             printf("]\n");
         }
     }
@@ -155,26 +163,22 @@ queryType parse(char *line)
     
     /* get the first token */
     token = strtok(line, s1);
-    
     Q.Xi = atoi(token);
     token = strtok(NULL, s1);
-    
     Q.Xj = atoi(token);
-    token = strtok(NULL, s1);
     
+    token = strtok(NULL, s1);
     token += 1;
     if(token == NULL)
         return Q;
     if(strlen(token)<=2){
-        Q.Z.push_back(-1);
+        if(*token >47 && *token<58)
+            Q.Z.push_back((*token)-48);
         return Q;
     }
     
-    
     token[strlen(token)-2] = '\0';
-    
     line = token;
-    
     token = strtok(line, s2);
     
     /* walk through other tokens */
@@ -196,13 +200,16 @@ int answerQueries(char infile[], char outfile[], BNet &bNet)
     fp = fopen(infile, "r");
     if (fp == NULL)
         return -1;
+    if((read = getline(&line, &len, fp)) == -1)
+        return -1;
     freopen(outfile,"w",stdout);
     while ((read = getline(&line, &len, fp)) != -1) {
-        //printf("%s\n",line);
+        print(line);
         queryType Q = parse(line);
         std::vector<int> ans = activeTrail(Q.Xi,Q.Xj,Q.Z,bNet);
         if(ans.size()){
             printf("no [");
+            reverse(ans.begin(),ans.end());
             for(int i=0;i<ans.size()-1;++i)
                 printf("%d,",ans[i]);
             printf("%d]\n",ans[ans.size()-1]);
@@ -233,8 +240,80 @@ int checkBayesNet(BNet *bNet){
  */
 std::vector<int> activeTrail(int Xi, int Xj, std::vector<int> &Z, BNet &bNet)
 {
-    std::vector<int>ret;
-    return ret;
+    std::vector<int> activeTrail;
+    std::vector<int> Pi(bNet.numNodes+1);
+    
+    std::set<int> toVisit(Z.begin(),Z.end());
+    std::set<int> ancestors;
+    
+    int Y,d;
+    while(!toVisit.empty()){
+        Y = *toVisit.begin();
+        toVisit.erase(toVisit.begin());
+        if(ancestors.find(Y) == ancestors.end())
+            tr(bNet.Parents[Y],it)
+                toVisit.insert(*it);
+        ancestors.insert(Y);
+    }
+    
+    std::set<ii> L;
+    L.insert(ii(Xi,1));
+    
+    std::vector<int> visited[2] = {
+        std::vector<int>(bNet.numNodes+1,0),
+        std::vector<int>(bNet.numNodes+1,0),
+    };
+    
+    std::set<int> fastZ(Z.begin(),Z.end());
+    Pi[Xi] = Xi;
+    
+    while(!L.empty()){
+        Y = (*L.begin()).first;
+        d = (*L.begin()).second;
+        L.erase(L.begin());
+        if(!visited[d][Y]){
+            if(fastZ.find(Y) == fastZ.end()){
+                if(Y == Xj){
+                    do{
+                        activeTrail.push_back(Y);
+                        Y = Pi[Y];
+                    }while(Y != Pi[Y]);
+                    if(activeTrail.size())
+                        activeTrail.push_back(Xi);
+                    return activeTrail;
+                }
+            }
+            visited[d][Y]=1;
+            if(d && (fastZ.find(Y) == fastZ.end())){
+                tr(bNet.Parents[Y],it){
+                    L.insert(ii(*it,1));
+                    if(!visited[1][*it])
+                        Pi[*it] = Y;
+                }
+                tr(bNet.Children[Y],it){
+                    L.insert(ii(*it,0));
+                    if(!visited[0][*it])
+                        Pi[*it] = Y;
+                }
+            }else if(!d){
+                if(fastZ.find(Y) == fastZ.end()){
+                    tr(bNet.Children[Y],it){
+                        L.insert(ii(*it,0));
+                        if(!visited[0][*it])
+                            Pi[*it] = Y;
+                    }
+                }
+                if(ancestors.find(Y) != ancestors.end()){
+                    tr(bNet.Parents[Y],it){
+                        L.insert(ii(*it,1));
+                        if(!visited[1][*it])
+                            Pi[*it] = Y;
+                    }
+                }
+            }
+        }
+    }
+    return activeTrail;
 }
 
 bool isdSep(int Xi, int Xj, std::vector<int> &Z, BNet &bNet){

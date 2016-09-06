@@ -9,3 +9,10 @@ source/main.cpp
 source/output.txt
 source/sample-bn.txt
 source/test.txt
+bn.dot
+bn.eps
+display.py
+readme.txt
+sample-output.txt
+sample-query.txt
+test.txt
