@@ -112,7 +112,7 @@ queryType parse(char *line)
         return Q;
     if(strlen(token)<=2){
         if(*token >47 && *token<58)
-            Q.Z.push_back((*token)-48);
+            Q.Z.push_back(atoi(token));
         return Q;
     }
     

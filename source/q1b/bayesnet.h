@@ -16,6 +16,7 @@ typedef std::pair<int,int> ii;
 typedef std::vector<ii> vii;
 typedef std::vector<vii> vvii;
 typedef std::set<int> set;
+typedef std::pair<std::pair<int,int>,std::vector<int> > samaan;
 
 #define tr(c,i) for( std::vector<int>::iterator i = (c).begin(); i != (c).end(); i++)
 

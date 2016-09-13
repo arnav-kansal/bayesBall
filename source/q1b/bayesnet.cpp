@@ -78,11 +78,11 @@ int answerQueries(char infile[], char outfile[], BNet &bNet)
     freopen(outfile,"w",stdout);
     while ((read = getline(&line, &len, fp)) != -1) {
         print(line);
+        
         queryType Q = parse(line);
         std::vector<int> ans = activeTrail(Q.Xi,Q.Xj,Q.Z,bNet);
         if(ans.size()){
             printf("no [");
-            reverse(ans.begin(),ans.end());
             for(int i=0;i<ans.size()-1;++i)
                 printf("%d,",ans[i]);
             printf("%d]\n",ans[ans.size()-1]);
@@ -128,9 +128,11 @@ std::vector<int> activeTrail(int Xi, int Xj, std::vector<int> &Z, BNet &bNet)
                 toVisit.insert(*it);
         ancestors.insert(Y);
     }
-    
-    std::set<ii> L;
-    L.insert(ii(Xi,1));
+    std::set<samaan> L;
+    std::vector<int> p;
+    p.push_back(Xi);
+    ii temp = ii(Xi,1);
+    L.insert(samaan(temp,p));
     
     std::vector<int> visited[2] = {
         std::vector<int>(bNet.numNodes+1,0),
@@ -141,46 +143,47 @@ std::vector<int> activeTrail(int Xi, int Xj, std::vector<int> &Z, BNet &bNet)
     Pi[Xi] = Xi;
     
     while(!L.empty()){
-        Y = (*L.begin()).first;
-        d = (*L.begin()).second;
+        
+        Y = (*L.begin()).first.first;
+        d = (*L.begin()).first.second;
+        //printf("%d %d\n",Y,d);
+        std::vector<int> path = (*L.begin()).second;
         L.erase(L.begin());
         if(!visited[d][Y]){
             if(fastZ.find(Y) == fastZ.end()){
                 if(Y == Xj){
-                    do{
-                        activeTrail.push_back(Y);
-                        Y = Pi[Y];
-                    }while(Y != Pi[Y]);
-                    if(activeTrail.size())
-                        activeTrail.push_back(Xi);
-                    return activeTrail;
+                    return path;
                 }
             }
             visited[d][Y]=1;
             if(d && (fastZ.find(Y) == fastZ.end())){
                 tr(bNet.Parents[Y],it){
-                    L.insert(ii(*it,1));
-                    if(!visited[1][*it])
-                        Pi[*it] = Y;
+                    std::vector<int> ttemp = path;
+                    ttemp.push_back(*it);
+                    ii temp = ii(*it,1);
+                    L.insert(samaan(temp,ttemp));
                 }
                 tr(bNet.Children[Y],it){
-                    L.insert(ii(*it,0));
-                    if(!visited[0][*it])
-                        Pi[*it] = Y;
+                    std::vector<int> ttemp = path;
+                    ttemp.push_back(*it);
+                    ii temp = ii(*it,0);
+                    L.insert(samaan(temp,ttemp));
                 }
             }else if(!d){
                 if(fastZ.find(Y) == fastZ.end()){
                     tr(bNet.Children[Y],it){
-                        L.insert(ii(*it,0));
-                        if(!visited[0][*it])
-                            Pi[*it] = Y;
+                        std::vector<int> ttemp = path;
+                        ttemp.push_back(*it);
+                        ii temp = ii(*it,0);
+                        L.insert(samaan(temp,ttemp));
                     }
                 }
                 if(ancestors.find(Y) != ancestors.end()){
                     tr(bNet.Parents[Y],it){
-                        L.insert(ii(*it,1));
-                        if(!visited[1][*it])
-                            Pi[*it] = Y;
+                        std::vector<int> ttemp = path;
+                        ttemp.push_back(*it);
+                        ii temp = ii(*it,1);
+                        L.insert(samaan(temp,ttemp));
                     }
                 }
             }
